@@ -77,3 +77,12 @@ def test_no_derivative_across_gap():
     tr = add_speed(pd.concat([a, b], ignore_index=True))
     assert np.nanmax(tr.speed) < 1.5
     assert len(detect_efforts(tr)) == 0
+
+
+def test_band_counts():
+    # 3 s of HSR (22.7 km/h), walk, then a 3 s sprint (28.8 km/h)
+    v = np.concatenate([np.full(100, 2.0), np.full(30, 6.3), np.full(100, 2.0),
+                        np.full(30, 8.0), np.full(100, 2.0)])
+    s = player_summary(add_speed(make_track(v), window=5)).iloc[0]
+    assert s.hsr_count == 1
+    assert s.sprint_count == 1

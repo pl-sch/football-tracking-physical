@@ -54,7 +54,8 @@ def fetch_physical_aggregates(data_dir: Path | str = "data") -> Path:
 def load_players(match_path: Path | str) -> pd.DataFrame:
     """One row per player listed in the match sheet."""
     meta = json.loads(Path(match_path).read_text())
-    teams = {meta["home_team"]["id"]: meta["home_team"]["short_name"],
+    home_id = meta["home_team"]["id"]
+    teams = {home_id: meta["home_team"]["short_name"],
              meta["away_team"]["id"]: meta["away_team"]["short_name"]}
     rows = []
     for p in meta["players"]:
@@ -62,6 +63,7 @@ def load_players(match_path: Path | str) -> pd.DataFrame:
             "player_id": p["id"],
             "name": p["short_name"],
             "team": teams.get(p["team_id"]),
+            "side": "home" if p["team_id"] == home_id else "away",
             "position": p["player_role"]["position_group"] if p["player_role"] else None,
             "minutes_official": (p["playing_time"]["total"] or {}).get("minutes_played")
             if p.get("playing_time") else None,
@@ -69,18 +71,33 @@ def load_players(match_path: Path | str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def attacking_sign(match_path: Path | str) -> dict[tuple[str, int], int]:
+    """(side, period) -> +1 if that team attacks towards +x, else -1."""
+    meta = json.loads(Path(match_path).read_text())
+    out = {}
+    for period, home_dir in enumerate(meta["home_team_side"], start=1):
+        home = 1 if home_dir == "left_to_right" else -1
+        out[("home", period)] = home
+        out[("away", period)] = -home
+    return out
+
+
 def load_tracking(tracking_path: Path | str) -> pd.DataFrame:
-    """Long format: one row per (frame, player). Columns: frame, period, player_id, x, y, detected.
+    """Long format: one row per (frame, player).
+
+    Columns: frame, period, player_id, x, y, detected, possession ("home", "away" or NaN
+    when SkillCorner assigns the ball to no team, e.g. dead ball or contested).
 
     Coordinates are in metres, origin at the centre spot.
     Frames before kick-off and between periods (period is null) are dropped.
     """
-    frames, periods, pids, xs, ys, det = [], [], [], [], [], []
+    frames, periods, pids, xs, ys, det, poss = [], [], [], [], [], [], []
     with open(tracking_path) as f:
         for line in f:
             fr = json.loads(line)
             if fr["period"] is None:
                 continue
+            group = {"home team": "home", "away team": "away"}.get(fr["possession"]["group"])
             for p in fr["player_data"]:
                 frames.append(fr["frame"])
                 periods.append(fr["period"])
@@ -88,6 +105,7 @@ def load_tracking(tracking_path: Path | str) -> pd.DataFrame:
                 xs.append(p["x"])
                 ys.append(p["y"])
                 det.append(bool(p["is_detected"]))
+                poss.append(group)
     return pd.DataFrame({
         "frame": np.asarray(frames, dtype=np.int32),
         "period": np.asarray(periods, dtype=np.int8),
@@ -95,4 +113,5 @@ def load_tracking(tracking_path: Path | str) -> pd.DataFrame:
         "x": np.asarray(xs, dtype=float),
         "y": np.asarray(ys, dtype=float),
         "detected": np.asarray(det, dtype=bool),
+        "possession": pd.Categorical(poss, categories=["home", "away"]),
     })

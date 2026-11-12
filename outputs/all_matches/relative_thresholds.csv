@@ -1,0 +1,97 @@
+player_id,absolute,relative,position,name,top_speed_ref
+4322,165.9,165.9,Full Back,H. Sakai,29.1
+9175,78.9,94.0,Central Defender,Roderick Miranda,28.4
+9520,35.8,67.9,Central Defender,S. Souprayen,27.4
+10549,104.6,124.3,Central Defender,T. Sainsbury,28.6
+11117,148.1,172.3,Midfield,Z. Machach,28.3
+11885,293.1,293.1,Wide Attacker,D. Arzani,29.3
+11891,143.3,126.8,Full Back,A. Behich,29.5
+14736,89.4,211.7,Midfield,L. Verstraete,26.6
+22937,12.3,33.2,Wide Attacker,Y. Cohen,28.2
+23418,218.7,363.0,Midfield,F. Gallegos,27.4
+23883,162.0,162.0,Central Defender,J. Donachie,29.2
+23909,292.8,257.4,Center Forward,K. Barbarouses,29.8
+23922,277.2,277.2,Full Back,B. Garuccio,28.8
+23930,189.7,220.9,Full Back,S. Roux,28.4
+26766,126.5,194.0,Central Defender,B. Vriends,27.6
+26844,320.6,279.7,Wide Attacker,R. Danzaki,29.6
+26969,151.0,304.6,Center Forward,H. Ishige,27.5
+27003,125.0,303.8,Midfield,K. Nagasawa,26.5
+29075,220.2,298.6,Center Forward,N. Vergos,28.2
+29856,30.1,120.2,Midfield,A. McCalmont,25.9
+31147,83.2,116.7,Central Defender,T. Smith,28.1
+33697,154.8,197.5,Central Defender,N. Pijnaker,28.1
+34423,143.8,143.8,Full Back,Mikael Doka,29.3
+38673,133.0,206.3,Center Forward,G. May,27.8
+42510,54.4,103.3,Central Defender,S. Wootton,26.6
+42513,166.4,191.1,Wide Attacker,Z. Clough,28.7
+43829,246.3,291.5,Wide Attacker,N. Moreno,28.8
+50949,84.9,208.7,Midfield,J. Barnett,27.0
+50951,126.4,194.6,Midfield,J. Brimmer,27.8
+50955,278.4,231.8,Wide Attacker,N. Velupillay,29.6
+50959,186.1,315.8,Midfield,S. Mauk,27.4
+50977,256.6,256.6,Central Defender,J. Rawlins,29.2
+50979,157.9,215.0,Center Forward,B. Fornaroli,28.0
+50992,108.6,147.1,Midfield,K. Trewin,27.9
+51002,67.4,184.3,Midfield,J. O'Shea,26.6
+51005,335.8,213.9,Full Back,D. Pierias,31.2
+51008,177.9,177.9,Full Back,T. Imai,29.0
+51013,117.6,117.6,Central Defender,B. Hamill,29.3
+51015,70.2,195.0,Midfield,A. Rufer,26.6
+51017,371.3,323.4,Full Back,T. Payne,29.9
+51028,270.1,270.1,Full Back,S. Sutton,29.1
+51046,96.0,380.7,Midfield,P. Retre,25.8
+51646,213.8,300.6,Midfield,J. Yull,28.0
+51667,136.7,85.0,Central Defender,D. Hall,30.9
+51668,234.9,206.7,Center Forward,A. Kuol,29.6
+51675,157.0,221.9,Midfield,A. Thurgate,27.9
+51681,65.0,154.8,Midfield,S. Ugarković,26.9
+51683,148.7,182.4,Full Back,L. Mauragis,28.7
+51685,148.3,148.3,Central Defender,L. Jackson,29.0
+51690,250.3,602.9,Wide Attacker,R. Najjarine,26.3
+51713,206.1,206.1,Full Back,C. Elliott,28.8
+51714,221.0,289.9,Midfield,R. Piscopo,28.0
+69111,130.0,130.0,Central Defender,H. Bility,29.0
+104563,183.2,249.2,Full Back,N. Atkinson,28.2
+114464,45.3,55.8,Central Defender,G. Ferreyra,28.3
+133495,140.1,307.9,Center Forward,C. Howieson,27.0
+133498,230.4,230.4,Full Back,F. De Vries,29.2
+133501,236.3,236.3,Wide Attacker,L. Rogerson,29.0
+157294,125.0,210.4,Midfield,R. Teague,27.5
+159688,99.7,151.7,Midfield,J. Valadon,27.9
+163972,99.6,184.5,Center Forward,M. Mata,27.1
+170488,198.3,154.1,Wide Attacker,Vitor Feijão,29.7
+287934,120.6,161.9,Midfield,Walid Shour,27.8
+560882,86.7,147.6,Center Forward,F. Bérenguer,27.5
+560893,140.9,226.6,Midfield,E. Alagich,27.3
+560895,147.3,253.8,Midfield,Isaias,27.2
+560916,271.5,271.5,Center Forward,N. Botić,29.0
+560917,197.0,269.4,Midfield,R. Bozinovski,28.2
+560983,189.6,147.7,Full Back,A. Burke-Gilroy,30.2
+560986,170.7,170.7,Wide Attacker,K. Jelacic,28.9
+582974,379.6,421.9,Wide Attacker,M. Francois,28.5
+624628,316.3,316.3,Center Forward,J. Randall,29.3
+698137,106.3,106.3,Central Defender,I. Hughes,28.9
+745320,391.4,202.9,Wide Attacker,Clarismario Rodrigues,31.9
+795508,48.0,230.2,Midfield,H. Steele,26.4
+795509,135.6,160.6,Wide Attacker,C. Theoharous,28.3
+795510,101.5,118.1,Central Defender,B. Kaltak,28.7
+795511,77.7,107.1,Central Defender,N. Paull,28.0
+795514,155.8,279.7,Wide Attacker,M. Di Pizio,27.2
+795521,299.9,451.6,Wide Attacker,A. Badolato,27.3
+795527,266.6,364.6,Wide Attacker,M. Grimaldi,28.2
+795529,379.4,314.9,Center Forward,M. Ruhs,30.5
+797295,103.6,140.6,Center Forward,L. Jovanovic,28.3
+797424,174.8,174.8,Center Forward,N. Duarte,28.9
+799092,157.7,293.9,Central Defender,M. Sheridan,27.5
+809670,280.4,876.4,Midfield,J. Lauton,24.6
+809759,116.1,176.9,Central Defender,P. Kikianis,27.5
+811820,136.9,171.2,Full Back,K. Bos,28.4
+818284,390.0,482.4,Center Forward,O. Lavale,27.9
+818554,272.8,272.8,Wide Attacker,A. Walatee,28.9
+923864,61.0,184.0,Midfield,H. Eames,26.0
+957734,231.5,231.5,Central Defender,C. Piper,29.3
+957737,114.5,177.5,Central Defender,D. Leonard,27.8
+963054,95.1,159.2,Wide Attacker,K. Rahmani,27.1
+965685,285.5,234.0,Wide Attacker,L. Gillion,29.9
+966114,250.8,165.1,Wide Attacker,A. Faisal,30.9

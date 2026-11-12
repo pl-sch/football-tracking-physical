@@ -104,6 +104,14 @@ def _count_accel_events(g: pd.DataFrame, sign: int, th: Thresholds, fps: float) 
     return sum(1 for a, b in _runs(acc >= th.accel_ms2, g["frame"].to_numpy()) if b - a >= min_frames)
 
 
+def _count_band(g: pd.DataFrame, lo: float, hi: float, th: Thresholds, fps: float) -> int:
+    """Number of stretches spent inside [lo, hi) km/h for at least min_duration."""
+    min_frames = int(round(th.min_duration_s * fps))
+    kmh = np.nan_to_num(g["speed"].to_numpy() * 3.6, nan=0.0)
+    return sum(1 for a, b in _runs((kmh >= lo) & (kmh < hi), g["frame"].to_numpy())
+               if b - a >= min_frames)
+
+
 def player_summary(df: pd.DataFrame, th: Thresholds = Thresholds(), fps: float = FPS) -> pd.DataFrame:
     """One row per player with match totals. `df` is the output of kinematics.add_speed."""
     dt = 1.0 / fps
@@ -126,13 +134,21 @@ def player_summary(df: pd.DataFrame, th: Thresholds = Thresholds(), fps: float =
             "hsr_distance_m": k[(k >= th.hsr_kmh) & (k < th.sprint_kmh)].sum() / 3.6 * dt,
             "sprint_distance_m": k[k >= th.sprint_kmh].sum() / 3.6 * dt,
             "max_speed_kmh": k.max() if len(k) else np.nan,
+            # SkillCorner-style counts: each stay in the band is one action, so a sprint
+            # that goes 18 -> 27 -> 18 km/h also yields two HSR actions (up and down).
+            "hsr_count": sum(_count_band(gp, th.hsr_kmh, th.sprint_kmh, th, fps)
+                             for _, gp in g.groupby("period")),
+            "sprint_count": sum(_count_band(gp, th.sprint_kmh, np.inf, th, fps)
+                                for _, gp in g.groupby("period")),
             "high_accel_count": sum(_count_accel_events(gp, +1, th, fps) for _, gp in g.groupby("period")),
             "high_decel_count": sum(_count_accel_events(gp, -1, th, fps) for _, gp in g.groupby("period")),
         })
     out = pd.DataFrame(rows).set_index("player_id")
+    # Our own convention, one run above 20 km/h = one effort (see module docstring)
     for kind in ("hsr", "sprint"):
-        out[f"{kind}_count"] = counts[kind] if kind in counts else 0
-    out[["hsr_count", "sprint_count"]] = out[["hsr_count", "sprint_count"]].fillna(0).astype(int)
+        out[f"{kind}_effort_count"] = counts[kind] if kind in counts else 0
+    cols = ["hsr_effort_count", "sprint_effort_count"]
+    out[cols] = out[cols].fillna(0).astype(int)
     out["top_speed_kmh"] = efforts.groupby("player_id")["peak_sustained_kmh"].max()
     return out.reset_index()
 
@@ -148,4 +164,40 @@ def add_rates(summary: pd.DataFrame, minutes_col: str) -> pd.DataFrame:
     out = summary.copy()
     out["minutes"] = out[minutes_col]
     out["meters_per_minute"] = out["total_distance_m"] / out["minutes"]
+    if "minutes_tip" in out:
+        out["meters_per_minute_tip"] = out["distance_tip_m"] / out["minutes_tip"].replace(0, np.nan)
+        out["meters_per_minute_otip"] = out["distance_otip_m"] / out["minutes_otip"].replace(0, np.nan)
     return out
+
+
+def possession_split(track: pd.DataFrame, side: pd.Series, th: Thresholds = Thresholds(),
+                     fps: float = FPS) -> pd.DataFrame:
+    """Distance and intensity split by whether the player's team has the ball.
+
+    `side` maps player_id -> "home" / "away". Frames where no team has the ball are left out
+    of both columns (SkillCorner does the same with its TIP / OTIP split).
+    """
+    t = track[["player_id", "speed", "possession"]].copy()
+    t["side"] = t["player_id"].map(side)
+    poss = t["possession"].astype(object)
+    t["phase"] = np.where(poss.isna(), "none", np.where(poss == t["side"], "tip", "otip"))
+    t["kmh"] = t["speed"] * 3.6
+    t["d"] = t["speed"].fillna(0) / fps
+    t["d_hi"] = np.where(t["kmh"] >= th.hsr_kmh, t["d"], 0.0)
+    g = t[t.phase != "none"].groupby(["player_id", "phase"])
+    agg = pd.DataFrame({"dist": g["d"].sum(), "hi": g["d_hi"].sum(), "min": g.size() / fps / 60})
+    out = agg.unstack("phase")
+    out.columns = [f"{a}_{b}" for a, b in out.columns]
+    out = out.rename(columns={"dist_tip": "distance_tip_m", "dist_otip": "distance_otip_m",
+                              "hi_tip": "hi_distance_tip_m", "hi_otip": "hi_distance_otip_m",
+                              "min_tip": "minutes_tip", "min_otip": "minutes_otip"})
+    return out.fillna(0).reset_index()
+
+
+def speed_histogram(track: pd.DataFrame, bin_kmh: float = 0.5) -> pd.DataFrame:
+    """Frames spent in each speed bin, per player. Lets any speed threshold be applied
+    later (e.g. relative to a player's top speed) without reprocessing the tracking."""
+    kmh = track["speed"] * 3.6
+    b = (np.floor(kmh / bin_kmh) * bin_kmh).round(2)
+    h = pd.DataFrame({"player_id": track["player_id"], "bin_kmh": b}).dropna()
+    return h.groupby(["player_id", "bin_kmh"]).size().rename("frames").reset_index()

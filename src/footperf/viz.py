@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib
+import matplotlib.ticker
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -127,3 +128,72 @@ def sprint_map(efforts: pd.DataFrame, track_x_sign: dict[int, int], player_id: i
     if out:
         fig.savefig(out, dpi=150)
     plt.close(fig)
+
+
+# Okabe-Ito, colour-blind safe. Grey for "no event".
+CONTEXT_COLORS = {
+    "with the ball": "#E69F00",
+    "run in behind": "#D55E00",
+    "attacking the box": "#CC79A7",
+    "width / overlap": "#F0E442",
+    "support / coming short": "#56B4E9",
+    "pressing": "#0072B2",
+    "no linked event": "#BBBBBB",
+}
+
+
+def _stacked(ax, table: pd.DataFrame, value_fmt: str | None = None) -> None:
+    left = np.zeros(len(table))
+    for ctx, color in CONTEXT_COLORS.items():
+        if ctx not in table:
+            continue
+        vals = table[ctx].to_numpy()
+        ax.barh(table.index, vals, left=left, color=color, label=ctx, height=0.7)
+        if value_fmt:
+            for y, (l, v) in enumerate(zip(left, vals)):
+                if v >= 0.06:
+                    ax.text(l + v / 2, y, format(v, value_fmt), ha="center", va="center",
+                            fontsize=7.5, color=INK)
+        left += vals
+    ax.invert_yaxis()
+    for s in ("top", "right", "left"):
+        ax.spines[s].set_visible(False)
+    ax.tick_params(left=False, colors=INK)
+
+
+def sprint_context_by_position(efforts: pd.DataFrame, out: Path) -> pd.DataFrame:
+    s = efforts[(efforts.kind == "sprint") & efforts.position.notna() & (efforts.position != "Other")]
+    t = pd.crosstab(s.position, s.context, normalize="index")
+    t = t.loc[t["no linked event"].sort_values().index]
+    n = s.groupby("position").size()
+    t.index = [f"{p} ({n[p]} sprints)" for p in t.index]
+    fig, ax = plt.subplots(figsize=(11, 3.8))
+    _stacked(ax, t, ".0%")
+    ax.set_xlim(0, 1)
+    ax.xaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
+    ax.set_title("What are sprints for? Share of sprints by football context, 20 A-League matches",
+                 loc="left", color=INK, fontsize=11)
+    ax.legend(frameon=False, ncol=4, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.12))
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return t
+
+
+def top_sprinters(efforts: pd.DataFrame, pooled: pd.DataFrame, out: Path, n: int = 15,
+                  min_matches: int = 3) -> pd.DataFrame:
+    p = pooled[(pooled.n_matches >= min_matches) & (pooled.position != "Other")].set_index("player_id")
+    s = efforts[(efforts.kind == "sprint") & efforts.player_id.isin(p.index)]
+    t = pd.crosstab(s.player_id, s.context).div(p["minutes_official"], axis=0).mul(90).dropna()
+    t = t.loc[t.sum(axis=1).sort_values(ascending=False).index[:n]]
+    t.index = [f"{p.loc[i, 'name']} ({p.loc[i, 'position']}, {p.loc[i, 'team']})" for i in t.index]
+    fig, ax = plt.subplots(figsize=(13, 0.38 * n + 1.6))
+    _stacked(ax, t)
+    ax.set_xlabel("sprints per 90 minutes", color=INK)
+    ax.set_title(f"Top {n} sprinters ({min_matches}+ matches), split by what the sprint was for",
+                 loc="left", color=INK, fontsize=11)
+    ax.legend(frameon=False, ncol=1, fontsize=8, loc="center left", bbox_to_anchor=(1.01, 0.5))
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return t

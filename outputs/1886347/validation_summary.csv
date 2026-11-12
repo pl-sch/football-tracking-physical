@@ -3,8 +3,12 @@ meters_per_minute,20,0.862,0.896,0.904
 running_distance_m,20,0.964,0.91,0.881
 hsr_distance_m,20,1.058,0.882,0.859
 sprint_distance_m,20,0.902,0.562,0.493
-hsr_count,20,0.758,0.797,0.856
-sprint_count,20,1.127,0.571,0.531
+hsr_count,20,0.993,0.815,0.846
+sprint_count,20,1.127,0.583,0.493
+hsr_effort_count,20,0.758,0.797,0.856
+sprint_effort_count,20,1.127,0.571,0.531
 high_accel_count,20,1.122,0.656,0.682
 high_decel_count,20,0.984,0.773,0.708
+meters_per_minute_tip,20,1.03,0.631,0.687
+meters_per_minute_otip,20,1.031,0.906,0.878
 top_speed_kmh,20,1.074,0.434,0.275

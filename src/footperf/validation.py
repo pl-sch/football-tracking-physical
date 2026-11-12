@@ -23,8 +23,12 @@ PAIRS = [
     ("sprint_distance_m", "sprint_distance_full_all", "per90"),
     ("hsr_count", "hsr_count_full_all", "per90"),
     ("sprint_count", "sprint_count_full_all", "per90"),
+    ("hsr_effort_count", "hsr_count_full_all", "per90"),
+    ("sprint_effort_count", "sprint_count_full_all", "per90"),
     ("high_accel_count", "highaccel_count_full_all", "per90"),
     ("high_decel_count", "highdecel_count_full_all", "per90"),
+    ("meters_per_minute_tip", "total_metersperminute_full_tip", "raw"),
+    ("meters_per_minute_otip", "total_metersperminute_full_otip", "raw"),
     ("top_speed_kmh", "psv99", "raw"),
 ]
 
@@ -37,7 +41,7 @@ def collapse_aggregates(agg: pd.DataFrame) -> pd.DataFrame:
     """
     if agg["player_id"].is_unique:
         return agg
-    cols = [t for _, t, _ in PAIRS] + ["minutes_full_all"]
+    cols = list(dict.fromkeys([t for _, t, _ in PAIRS] + ["minutes_full_all"]))
     w = agg["count_match"].clip(lower=1)
     weighted = agg[cols].mul(w, axis=0).assign(player_id=agg["player_id"], _w=w)
     g = weighted.groupby("player_id")

@@ -15,9 +15,10 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from footperf import (add_rates, add_speed, compare, detect_efforts, fetch_match,  # noqa: E402
-                      fetch_physical_aggregates, load_players, load_tracking, player_summary)
+from footperf import (add_rates, add_speed, compare, fetch_match,  # noqa: E402
+                      fetch_physical_aggregates, load_tracking)
 from footperf import viz  # noqa: E402
+from footperf.pipeline import process_match  # noqa: E402
 
 
 def main() -> None:
@@ -33,16 +34,10 @@ def main() -> None:
 
     paths = fetch_match(args.match, args.data)
     agg = pd.read_csv(fetch_physical_aggregates(args.data))
-    players = load_players(paths["match"])
-
-    track = add_speed(load_tracking(paths["tracking"]), window=args.window)
-    efforts = detect_efforts(track)
-    summary = add_rates(players.merge(player_summary(track), on="player_id"), "minutes_official")
-    summary = summary.sort_values("total_distance_m", ascending=False)
-
-    summary.round(2).to_csv(out / "players_physical.csv", index=False)
-    efforts.merge(players[["player_id", "name", "team"]], on="player_id") \
-        .round(2).to_csv(out / "efforts.csv", index=False)
+    summary = process_match(args.match, args.data, args.out, args.window, force=True)
+    summary = add_rates(summary, "minutes_official").sort_values("total_distance_m", ascending=False)
+    efforts = pd.read_csv(out / "efforts.csv")
+    track = add_speed(load_tracking(paths["tracking"]), window=args.window)  # for figures
 
     table, val = compare(summary, agg)
     val.round(3).to_csv(out / "validation_summary.csv", index=False)

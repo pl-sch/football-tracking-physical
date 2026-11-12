@@ -51,6 +51,7 @@ def main() -> None:
     out = args.out / "all_matches"
     out.mkdir(parents=True, exist_ok=True)
     by_match.round(3).to_csv(out / "players_by_match.csv", index=False)
+    matches.to_csv(out / "matches.csv", index=False)
 
     # Baseline: average correlation when each match is compared on its own
     single = pd.concat(single)

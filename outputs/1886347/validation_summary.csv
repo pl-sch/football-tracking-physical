@@ -1,0 +1,10 @@
+metric,n_players,median_ratio,pearson_r,spearman_r
+meters_per_minute,32,0.861,0.801,0.814
+running_distance_m,32,0.97,0.815,0.789
+hsr_distance_m,32,1.069,0.776,0.741
+sprint_distance_m,32,0.921,0.393,0.335
+hsr_count,32,0.754,0.745,0.746
+sprint_count,32,1.147,0.399,0.411
+high_accel_count,32,1.092,0.631,0.646
+high_decel_count,32,0.99,0.746,0.703
+top_speed_kmh,32,1.061,0.271,0.212

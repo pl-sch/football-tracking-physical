@@ -69,7 +69,8 @@ def speed_profile(track: pd.DataFrame, player_id: int, name: str, period: int, o
     plt.close(fig)
 
 
-def validation_grid(table: pd.DataFrame, summary: pd.DataFrame, out: Path) -> None:
+def validation_grid(table: pd.DataFrame, summary: pd.DataFrame, out: Path,
+                    ylabel: str = "ours, this match") -> None:
     """Our match value vs SkillCorner season average, one panel per metric."""
     metrics = summary["metric"].tolist()
     ncol = 3
@@ -88,7 +89,7 @@ def validation_grid(table: pd.DataFrame, summary: pd.DataFrame, out: Path) -> No
         ax.set_title(f"{m}\nr={s['pearson_r']:.2f}  median ratio={s['median_ratio']:.2f}",
                      fontsize=9, loc="left", color=INK)
         ax.set_xlabel("SkillCorner season avg", fontsize=8)
-        ax.set_ylabel("ours, this match", fontsize=8)
+        ax.set_ylabel(ylabel, fontsize=8)
         _style(ax)
     for ax in list(axes.flat)[len(metrics):]:
         ax.axis("off")

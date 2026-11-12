@@ -29,9 +29,26 @@ PAIRS = [
 ]
 
 
+def collapse_aggregates(agg: pd.DataFrame) -> pd.DataFrame:
+    """One row per player.
+
+    The file splits some players over several rows (e.g. by position group). Every metric
+    is a per-match average, so rows are merged with a mean weighted by match count.
+    """
+    if agg["player_id"].is_unique:
+        return agg
+    cols = [t for _, t, _ in PAIRS] + ["minutes_full_all"]
+    w = agg["count_match"].clip(lower=1)
+    weighted = agg[cols].mul(w, axis=0).assign(player_id=agg["player_id"], _w=w)
+    g = weighted.groupby("player_id")
+    out = g[cols].sum().div(g["_w"].sum(), axis=0)
+    out["count_match"] = agg.groupby("player_id")["count_match"].sum()
+    return out.reset_index()
+
+
 def compare(ours: pd.DataFrame, agg: pd.DataFrame, min_minutes: float = 45.0) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Returns (per-player comparison table, per-metric summary)."""
-    m = ours.merge(agg, on="player_id", how="inner", suffixes=("", "_sc"))
+    m = ours.merge(collapse_aggregates(agg), on="player_id", how="inner", suffixes=("", "_sc"))
     m = m[(m["minutes"] >= min_minutes) & (m["minutes_full_all"] > 0)].copy()
 
     rows = []

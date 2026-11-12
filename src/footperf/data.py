@@ -35,6 +35,17 @@ def fetch_match(match_id: int, data_dir: Path | str = "data") -> dict[str, Path]
     }
 
 
+def list_matches(data_dir: Path | str = "data") -> pd.DataFrame:
+    """All matches available in the open data repo."""
+    path = _download(f"{RAW}/matches.json", Path(data_dir) / "matches.json")
+    return pd.DataFrame([{
+        "match_id": m["id"],
+        "date": m["date_time"][:10],
+        "home": m["home_team"]["short_name"],
+        "away": m["away_team"]["short_name"],
+    } for m in json.loads(path.read_text())]).sort_values("date").reset_index(drop=True)
+
+
 def fetch_physical_aggregates(data_dir: Path | str = "data") -> Path:
     name = "aus1league_physicalaggregates_20242025.csv"
     return _download(f"{RAW}/aggregates/{name}", Path(data_dir) / name)

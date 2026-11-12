@@ -6,7 +6,7 @@ Most football analytics repos start from metrics someone else already computed. 
 
 Data: [SkillCorner Open Data](https://github.com/SkillCorner/opendata), Australian A-League 2024/25, 20 matches, 271 players (MIT licence).
 
-**Explore the results:** `streamlit run app/streamlit_app.py` (player profiles, match tables, comparisons, with the stats you pick).
+**Live app: [pl-sch-football.streamlit.app](https://pl-sch-football.streamlit.app)** (player profiles, match tables, comparisons, with the stats you pick).
 
 ## Quick start
 

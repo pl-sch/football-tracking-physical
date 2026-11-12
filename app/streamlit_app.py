@@ -115,8 +115,9 @@ with tab_player:
     opts = {int(k): v for k, v in zip(p.player_id, p.name + " (" + p.team + ", "
                                       + p.position.fillna("?") + ")")}
     default = int(p.sort_values("sprint_count").player_id.iloc[-1])
-    pid = st.selectbox("Player", list(opts), format_func=lambda i: opts[int(i)],
-                       index=list(opts).index(default))
+    pid = st.selectbox("Search a player (type a name)", list(opts), format_func=lambda i: opts[int(i)],
+                       index=list(opts).index(default),
+                       help="Click the box and start typing: the list filters as you type.")
     me = pooled[pooled.player_id == pid].iloc[0]
     peers = per90(pooled[(pooled.position == me.position) & (pooled.minutes_official >= 180)],
                   list(METRICS))

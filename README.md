@@ -1,10 +1,18 @@
 # Football tracking: physical metrics from raw positions
 
-Distance, high-speed running, sprints and accelerations for every player, computed from raw broadcast tracking (x, y at 10 Hz), checked against the provider's own published numbers on 20 matches, then linked to what happens on the pitch: is a sprint a run in behind, a press, a carry, a recovery run?
+Distance, high-speed running, sprints and accelerations for every player, computed from raw tracking data (x, y positions, 10 to 25 times per second), checked against the providers' own numbers on 27 matches from two leagues, then linked to what happens on the pitch: is a sprint a run in behind, a press, a carry, a recovery run?
 
 Most football analytics repos start from metrics someone else already computed. This one starts from positions, treats speed and acceleration as a signal processing problem, and measures how far the result is from the reference before using it.
 
-Data: [SkillCorner Open Data](https://github.com/SkillCorner/opendata), Australian A-League 2024/25, 20 matches, 271 players (MIT licence).
+Data, two leagues kept apart because the providers and their stats differ:
+
+| | A-League 2024/25 | Bundesliga 2022/23 (1st and 2nd division) |
+|---|---|---|
+| source | [SkillCorner Open Data](https://github.com/SkillCorner/opendata), MIT | [IDSSE dataset](https://doi.org/10.1038/s41597-025-04505-y), DFL / Sportec Solutions, CC-BY 4.0 |
+| matches, players | 20, 271 | 7, 164 |
+| tracking | broadcast video, 10 Hz, 43% of positions extrapolated (off camera) | optical (TRACAB), 25 Hz, every player always tracked |
+| events | off-ball runs, pressing, passes, shots | passes, shots with xG, duels, aerial duels, tackles |
+| reference to validate against | SkillCorner season aggregates | DFL speed published for every frame |
 
 **Live app: [pl-sch-football.streamlit.app](https://pl-sch-football.streamlit.app)** (player profiles, match tables, comparisons, with the stats you pick).
 
@@ -12,7 +20,10 @@ Data: [SkillCorner Open Data](https://github.com/SkillCorner/opendata), Australi
 
 ```bash
 pip install -r requirements.txt
-python scripts/run_all.py                 # 20 matches: physical + technical stats, validation (~1.8 GB download, ~1 min per run after)
+bash scripts/fetch_idsse.sh                       # Bundesliga files from Hugging Face (2.6 GB, optional)
+python src/footperf/sportec_convert.py data/idsse # XML -> compact CSV, standard library only
+python scripts/run_all.py                 # all matches: physical + technical stats, validation (A-League ~1.8 GB download)
+python scripts/bundesliga_check.py        # our speed vs the DFL's, add --window-scan for the smoothing test
 python scripts/sprint_context.py          # what each sprint was for
 python scripts/relative_thresholds.py     # fixed vs player-relative sprint threshold
 python scripts/run_match.py --match 1886347   # one match in detail, with signal figures
@@ -21,7 +32,7 @@ streamlit run app/streamlit_app.py
 pytest
 ```
 
-Downloads are cached in `data/` (not in git). Results are written to `outputs/` and committed, so the app runs without downloading anything.
+Without the Bundesliga files, `run_all.py` simply runs on the A-League. Downloads are cached in `data/` (not in git). Results are written to `outputs/` and committed, so the app runs without downloading anything.
 
 ## Pipeline
 
@@ -81,6 +92,25 @@ Two wingers with the same sprint count can be very different players: R. Najjari
 
 The rank correlation between the two is 0.68: a third of the ordering changes. Midfielders go from last but one to level with full-backs; wide attackers lose first place to centre-forwards. Which threshold is "right" depends on the question: fixed for comparing the physical demand of roles, relative for how often a player works near his own limit. This uses speed histograms saved per match, so any threshold can be tested without reprocessing the tracking.
 
+## Bundesliga: an exact check on optical tracking
+
+The A-League check compares one match with a season average, which is indirect. The DFL data allows a direct one: the provider publishes its own speed for every player at every frame, so distances computed from our Savitzky-Golay speed can be compared with distances from theirs, player by player, match by match.
+
+![bundesliga check](outputs/all_matches/bundesliga_provider_check.png)
+
+Over 184 player-matches: total distance 0.998 of the provider's, HSR distance 0.988, sprint distance 0.991, correlation 1.000 on all three. Sprint, HSR and acceleration counts on one match are within 2% of the counts obtained with the provider's speed.
+
+The smoothing window that suits broadcast data is wrong for optical data. With 0.9 s, chosen on the A-League, sprint distance comes out 4% low: the filter shaves the peaks. Clean 25 Hz positions need less smoothing.
+
+| Savitzky-Golay window | 0.28 s | 0.44 s | 0.60 s | 0.92 s | 1.24 s |
+|---|---|---|---|---|---|
+| sprint distance, ratio to DFL | 1.007 | 0.994 | 0.983 | 0.963 | 0.923 |
+| HSR distance, ratio to DFL | 0.993 | 0.989 | 0.983 | 0.955 | 0.932 |
+
+The pipeline uses 0.44 s for optical tracking and 0.9 s for broadcast tracking. The right filter depends on the noise of the source, not on football.
+
+The DFL events also bring what SkillCorner's lack: duels with a winner and a loser, aerial duels (headers), tackles, and xG per shot. They are in the app under "Bundesliga". With 7 matches, all involving Fortuna Düsseldorf, these are illustrations, not league-wide conclusions.
+
 ## Three things the data taught me
 
 **1. Broadcast tracking loses players a quarter of the time.** On match 1886347, 26% of frames are empty: replays and close-ups, mostly during stoppages, when players walk. Dividing distance by *tracked* minutes inflates intensity by 15%. Dividing by minutes played is fair but misses the low-speed distance covered off-camera. The possession split above confirms it: within live play, the bias is gone.
@@ -100,7 +130,7 @@ The default of 9 frames was chosen because it matches SkillCorner on acceleratio
 
 ## App
 
-`app/streamlit_app.py` reads the CSV files in `outputs/`:
+`app/streamlit_app.py` reads the CSV files in `outputs/`. Pick the league at the top; each league shows the stats its provider records.
 
 - **Player**: percentiles against players in the same position, sprint map filtered by context, match-by-match table with the stats you choose.
 - **Match**: both teams, chosen stats, totals or per 90 minutes.
@@ -114,17 +144,22 @@ src/footperf/
   kinematics.py   Savitzky-Golay speed and acceleration, gap handling
   physical.py     speed zones, efforts, possession split, speed histograms
   events.py       technical stats and effort context from dynamic events
+  sportec.py      Bundesliga (DFL / IDSSE): players, tracking, events, provider speed check
+  sportec_convert.py  streaming XML -> CSV converter, standard library only
   pipeline.py     one match end to end with caching, pooling across matches
   validation.py   comparison with SkillCorner season aggregates
   viz.py          figures (matplotlib only)
-scripts/          run_all, run_match, sprint_context, relative_thresholds, sensitivity
+scripts/          run_all, run_match, sprint_context, relative_thresholds, sensitivity,
+                  bundesliga_check, fetch_idsse.sh
 app/              Streamlit explorer
 tests/            synthetic trajectories with known answers
 ```
 
 ## Limits and next steps
 
-- One season sample of one league, 20 matches, 1 to 7 matches per player.
+- Small samples: 20 A-League matches (1 to 7 per player), 7 Bundesliga matches all involving Fortuna Düsseldorf.
+- No free tracking data exists for Ligue 1. The 2022 World Cup (PFF FC, free on registration) is the next candidate.
+- Degrade the Bundesliga data to 10 Hz with broadcast-like noise and gaps, to measure how much of the A-League error comes from the source rather than the method.
 - Find where the 16% excess in sprint counts comes from (extrapolated frames are the first suspect).
 - Event data with tackles, duels and headers (e.g. StatsBomb) exists for other competitions, not for these matches.
 - Physical output by game state: winning, drawing, losing.
@@ -132,4 +167,5 @@ tests/            synthetic trajectories with known answers
 ## Sources
 
 - SkillCorner Open Data, github.com/SkillCorner/opendata
+- Bassek, M. et al. (2025). An integrated dataset of synchronized spatiotemporal and event data in elite soccer. Scientific Data. doi.org/10.1038/s41597-025-04505-y
 - SkillCorner metric definitions (HSR 20-25 km/h, sprint >25 km/h, sustained 0.7 s): skillcorner.com/blog/seasonality

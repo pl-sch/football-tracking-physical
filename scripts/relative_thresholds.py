@@ -33,7 +33,7 @@ def distance_above(hist: pd.DataFrame, threshold: pd.Series | float) -> pd.Serie
     """Metres covered above a threshold (scalar or per player), from speed histograms."""
     h = hist.copy()
     thr = h.player_id.map(threshold) if isinstance(threshold, pd.Series) else threshold
-    h["d"] = (h.bin_kmh + BIN / 2) / 3.6 * h.frames / 10
+    h["d"] = (h.bin_kmh + BIN / 2) / 3.6 * h.seconds
     return h[h.bin_kmh >= thr].groupby("player_id").d.sum()
 
 
@@ -48,11 +48,13 @@ def main() -> None:
     if not files:
         sys.exit("no histograms: run scripts/run_all.py first")
     hist = (pd.concat([pd.read_csv(f) for f in files])
-            .groupby(["player_id", "bin_kmh"]).frames.sum().reset_index())
+            .groupby(["player_id", "bin_kmh"]).seconds.sum().reset_index())
     p = pd.read_csv(OUT / "all_matches" / "players_pooled.csv")
     p = p[(p.n_matches >= args.min_matches) & (p.position != "Other")].set_index("player_id")
-    # Reference top speed: SkillCorner's season PSV-99 when available. Ours is computed on
-    # few matches and correlates only ~0.6 with it; a relative threshold inherits that error
+    # A-League only: the reference top speed below is SkillCorner's season PSV-99, which
+    # does not exist for the Bundesliga matches. Mixing two references would bias the comparison.
+    p = p[p.league.str.startswith("A-League")]
+    # Our own top speed is computed on few matches and correlates only ~0.6 with it; a relative threshold inherits that error
     # directly (a 24 km/h "top speed" turns ordinary running into "sprinting").
     agg = collapse_aggregates(pd.read_csv(fetch_physical_aggregates(ROOT / "data")))
     psv = agg.set_index("player_id")["psv99"].reindex(p.index)

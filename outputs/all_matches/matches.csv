@@ -1,21 +1,28 @@
-match_id,date,home,away
-1874553,2024-11-23,Brisbane FC,Adelaide United
-1886347,2024-11-30,Auckland FC,Newcastle
-1899585,2024-12-07,Auckland FC,Wellington P FC
-1925299,2024-12-21,Brisbane FC,Perth Glory
-1927964,2024-12-22,Western Sydney,Wellington P FC
-1953632,2024-12-31,CC Mariners,Melbourne City
-1959846,2025-01-10,Melbourne V FC,Western United
-1986691,2025-01-26,Western Sydney,Auckland FC
-1996435,2025-02-01,Sydney FC,Adelaide United
-1996436,2025-02-01,Auckland FC,Macarthur FC
-2006229,2025-03-07,Melbourne City,Macarthur FC
-2006363,2025-03-08,Melbourne V FC,CC Mariners
-2007448,2025-03-15,Perth Glory,Brisbane FC
-2007721,2025-03-16,Auckland FC,CC Mariners
-2010085,2025-04-05,Melbourne City,CC Mariners
-2011166,2025-04-12,Wellington P FC,Melbourne V FC
-2013725,2025-04-27,Western United,Sydney FC
-2015213,2025-05-03,Western United,Auckland FC
-2016236,2025-05-09,Western United,Adelaide United
-2017461,2025-05-17,Melbourne V FC,Auckland FC
+match_id,date,home,away,league
+1874553,2024-11-23,Brisbane FC,Adelaide United,A-League 2024/25
+1886347,2024-11-30,Auckland FC,Newcastle,A-League 2024/25
+1899585,2024-12-07,Auckland FC,Wellington P FC,A-League 2024/25
+1925299,2024-12-21,Brisbane FC,Perth Glory,A-League 2024/25
+1927964,2024-12-22,Western Sydney,Wellington P FC,A-League 2024/25
+1953632,2024-12-31,CC Mariners,Melbourne City,A-League 2024/25
+1959846,2025-01-10,Melbourne V FC,Western United,A-League 2024/25
+1986691,2025-01-26,Western Sydney,Auckland FC,A-League 2024/25
+1996435,2025-02-01,Sydney FC,Adelaide United,A-League 2024/25
+1996436,2025-02-01,Auckland FC,Macarthur FC,A-League 2024/25
+2006229,2025-03-07,Melbourne City,Macarthur FC,A-League 2024/25
+2006363,2025-03-08,Melbourne V FC,CC Mariners,A-League 2024/25
+2007448,2025-03-15,Perth Glory,Brisbane FC,A-League 2024/25
+2007721,2025-03-16,Auckland FC,CC Mariners,A-League 2024/25
+2010085,2025-04-05,Melbourne City,CC Mariners,A-League 2024/25
+2011166,2025-04-12,Wellington P FC,Melbourne V FC,A-League 2024/25
+2013725,2025-04-27,Western United,Sydney FC,A-League 2024/25
+2015213,2025-05-03,Western United,Auckland FC,A-League 2024/25
+2016236,2025-05-09,Western United,Adelaide United,A-League 2024/25
+2017461,2025-05-17,Melbourne V FC,Auckland FC,A-League 2024/25
+J03WMX,2023-05-27,1. FC Köln,FC Bayern München,Bundesliga 2022/23
+J03WN1,2023-05-27,VfL Bochum 1848,Bayer 04 Leverkusen,Bundesliga 2022/23
+J03WOH,2022-08-26,Fortuna Düsseldorf,SSV Jahn Regensburg,2. Bundesliga 2022/23
+J03WOY,2022-09-10,Fortuna Düsseldorf,F.C. Hansa Rostock,2. Bundesliga 2022/23
+J03WPY,2022-10-15,Fortuna Düsseldorf,1. FC Nürnberg,2. Bundesliga 2022/23
+J03WQQ,2022-11-05,Fortuna Düsseldorf,FC St. Pauli,2. Bundesliga 2022/23
+J03WR9,2022-11-11,Fortuna Düsseldorf,1. FC Kaiserslautern,2. Bundesliga 2022/23

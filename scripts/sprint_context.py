@@ -20,11 +20,15 @@ from footperf import viz  # noqa: E402
 
 def main() -> None:
     outputs = ROOT / "outputs"
-    files = [f for f in outputs.glob("*/efforts.csv") if f.parent.name.isdigit()]
+    files = [f for f in outputs.glob("*/efforts.csv") if f.parent.name != "all_matches"]
     if not files:
         sys.exit("no efforts found: run scripts/run_all.py first")
     efforts = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+    # Context comes from SkillCorner dynamic events: A-League only
+    efforts = efforts[~efforts.context.str.startswith("not available")]
+    files = [f for f in files if f.parent.name.isdigit()]
     pooled = pd.read_csv(outputs / "all_matches" / "players_pooled.csv")
+    pooled = pooled[pooled.league.str.startswith("A-League")]
 
     out = outputs / "all_matches"
     by_pos = viz.sprint_context_by_position(efforts, out / "sprint_context_by_position.png")

@@ -86,3 +86,28 @@ def test_band_counts():
     s = player_summary(add_speed(make_track(v), window=5)).iloc[0]
     assert s.hsr_count == 1
     assert s.sprint_count == 1
+
+
+def test_window_matches_duration_at_any_frame_rate():
+    from footperf.pipeline import window_frames
+    assert window_frames(10) == 9          # 0.9 s at 10 Hz (broadcast)
+    assert window_frames(25, 0.44) == 11   # 0.44 s at 25 Hz (optical)
+    assert window_frames(25) % 2 == 1      # always odd
+
+
+def test_dfl_player_ids_are_stable_and_disjoint_from_skillcorner():
+    from footperf.sportec import player_int_id
+    a = player_int_id("DFL-OBJ-0000NZ")
+    assert a == player_int_id("DFL-OBJ-0000NZ")
+    assert a > 10**9  # SkillCorner ids are below 10^7
+
+
+def test_same_distance_at_25_hz():
+    fps = 25
+    v = np.full(1500, 4.0)  # 60 s at 4 m/s
+    x = np.concatenate(([0.0], np.cumsum(v[1:] / fps)))
+    tr = pd.DataFrame({"frame": np.arange(len(x)), "period": 1, "player_id": 1, "x": x,
+                       "y": 0.0, "detected": True})
+    s = player_summary(add_speed(tr, window=11, fps=fps), fps=fps).iloc[0]
+    assert s.total_distance_m == pytest.approx(240, rel=0.01)
+    assert s.minutes_tracked == pytest.approx(1.0, rel=0.01)

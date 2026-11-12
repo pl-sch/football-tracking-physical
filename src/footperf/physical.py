@@ -194,10 +194,12 @@ def possession_split(track: pd.DataFrame, side: pd.Series, th: Thresholds = Thre
     return out.fillna(0).reset_index()
 
 
-def speed_histogram(track: pd.DataFrame, bin_kmh: float = 0.5) -> pd.DataFrame:
-    """Frames spent in each speed bin, per player. Lets any speed threshold be applied
+def speed_histogram(track: pd.DataFrame, bin_kmh: float = 0.5, fps: float = FPS) -> pd.DataFrame:
+    """Seconds spent in each speed bin, per player. Lets any speed threshold be applied
     later (e.g. relative to a player's top speed) without reprocessing the tracking."""
     kmh = track["speed"] * 3.6
     b = (np.floor(kmh / bin_kmh) * bin_kmh).round(2)
     h = pd.DataFrame({"player_id": track["player_id"], "bin_kmh": b}).dropna()
-    return h.groupby(["player_id", "bin_kmh"]).size().rename("frames").reset_index()
+    out = h.groupby(["player_id", "bin_kmh"]).size().rename("seconds").reset_index()
+    out["seconds"] = out["seconds"] / fps
+    return out

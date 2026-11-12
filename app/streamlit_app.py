@@ -40,6 +40,19 @@ METRICS = {
     "runs_targeted": ("Runs targeted by a pass", "volume"),
     "defensive_engagements": ("Defensive engagements", "volume"),
     "regains": ("Regains", "volume"),
+    "shots_on_target": ("Shots on target", "volume"),
+    "xg": ("Expected goals (xG)", "volume"),
+    "duels": ("Duels", "volume"),
+    "duel_win": ("Duels won (%)", "rate"),
+    "aerial_duels": ("Aerial duels (headers)", "volume"),
+    "aerial_win": ("Aerial duels won (%)", "rate"),
+    "tackles_won": ("Tackles won", "volume"),
+}
+# Which stats each data source provides (others are left empty, not zero)
+SOURCE_ONLY = {
+    "A-League": {"off_ball_runs", "runs_targeted", "defensive_engagements", "possession_losses"},
+    "Bundesliga": {"shots_on_target", "xg", "duels", "duel_win", "aerial_duels", "aerial_win",
+                   "tackles_won"},
 }
 DEFAULT = ["total_distance_m", "hsr_distance_m", "sprint_count", "top_speed_kmh", "passes",
            "pass_accuracy", "regains"]
@@ -48,18 +61,23 @@ CONTEXT_COLORS = {
     "width / overlap": "#F0E442", "support / coming short": "#56B4E9", "pressing": "#0072B2",
     "no linked event": "#BBBBBB",
 }
+PHASE_COLORS = {"in possession": "#D55E00", "out of possession": "#0072B2", "no possession": "#BBBBBB"}
 
 
 @st.cache_data
 def load():
-    by_match = pd.read_csv(ALL / "players_by_match.csv")
-    pooled = pd.read_csv(ALL / "players_pooled.csv")
-    matches = pd.read_csv(ALL / "matches.csv")
+    by_match = pd.read_csv(ALL / "players_by_match.csv", dtype={"match_id": str}, low_memory=False)
+    pooled = pd.read_csv(ALL / "players_pooled.csv", low_memory=False)
+    matches = pd.read_csv(ALL / "matches.csv", dtype={"match_id": str})
     matches["label"] = matches.date + "  " + matches.home + " - " + matches.away
-    efforts = pd.concat([pd.read_csv(f).assign(match_id=int(f.parent.name))
-                         for f in OUT.glob("*/efforts.csv") if f.parent.name.isdigit()],
+    efforts = pd.concat([pd.read_csv(f).assign(match_id=f.parent.name)
+                         for f in OUT.glob("*/efforts.csv") if f.parent.name != "all_matches"],
                         ignore_index=True)
     for df in (by_match, pooled):
+        df["source"] = np.where(df.league.str.startswith("A-League"), "A-League", "Bundesliga")
+        if "duels" in df:
+            df["duel_win"] = 100 * df.duels_won / df.duels.replace(0, np.nan)
+            df["aerial_win"] = 100 * df.aerial_duels_won / df.aerial_duels.replace(0, np.nan)
         df["pass_accuracy"] = 100 * df.passes_successful / df.passes.replace(0, np.nan)
         df["meters_per_minute_tip"] = df.distance_tip_m / df.minutes_tip.replace(0, np.nan)
         df["meters_per_minute_otip"] = df.distance_otip_m / df.minutes_otip.replace(0, np.nan)
@@ -78,7 +96,14 @@ def labels(cols, p90=True):
     return {c: METRICS[c][0] + (" /90" if p90 and METRICS[c][1] == "volume" else "") for c in cols}
 
 
-def pitch(efforts: pd.DataFrame):
+def available(source: str) -> list[str]:
+    """Stats recorded by this data source."""
+    other = [k for k in SOURCE_ONLY if k != source]
+    banned = set().union(*(SOURCE_ONLY[k] for k in other))
+    return [c for c in METRICS if c not in banned]
+
+
+def pitch(efforts: pd.DataFrame, colors: dict, column: str):
     L, W = 104, 68
     fig, ax = plt.subplots(figsize=(8, 5.4))
     ax.add_patch(plt.Rectangle((-L / 2, -W / 2), L, W, fill=False, color="#9aa5b1"))
@@ -89,7 +114,7 @@ def pitch(efforts: pd.DataFrame):
     for _, r in efforts.iterrows():
         ax.annotate("", xy=(r.x_end_att, r.y_end_att), xytext=(r.x_start_att, r.y_start_att),
                     arrowprops=dict(arrowstyle="->", lw=1.3, alpha=0.85,
-                                    color=CONTEXT_COLORS.get(r.context, "#888")))
+                                    color=colors.get(r[column], "#888")))
     ax.text(L / 2, W / 2 + 3, "attacking →", ha="right", color="#52606d", fontsize=9)
     ax.set_xlim(-L / 2 - 2, L / 2 + 2)
     ax.set_ylim(-W / 2 - 2, W / 2 + 5)
@@ -103,25 +128,35 @@ st.set_page_config(page_title="Football tracking explorer", layout="wide")
 by_match, pooled, matches, efforts = load()
 
 st.title("Football tracking explorer")
-st.caption("A-League 2024/25, 20 matches of SkillCorner broadcast tracking. Physical metrics computed "
-           "from raw positions, technical stats from SkillCorner dynamic events. "
+st.caption("Physical metrics computed from raw player positions. "
+           "A-League 2024/25: 20 matches, SkillCorner broadcast tracking, tactical events. "
+           "Bundesliga 2022/23: 7 matches, DFL optical tracking, duels and xG. "
            "[Code and method](https://github.com/pl-sch/football-tracking-physical)")
+
+source = st.radio("Data", ["A-League", "Bundesliga"], horizontal=True,
+                  help="The two leagues come from different providers and record different stats: "
+                       "they are kept apart rather than mixed in one ranking.")
+STATS = available(source)
+DEF = [c for c in DEFAULT + (["duels", "aerial_duels"] if source == "Bundesliga" else []) if c in STATS]
+pool_s = pooled[pooled.source == source]
+bym_s = by_match[by_match.source == source]
+matches_s = matches[matches.league.str.startswith(source) | (
+    (source == "Bundesliga") & matches.league.str.contains("Bundesliga"))]
 
 tab_player, tab_match, tab_compare = st.tabs(["Player", "Match", "Compare players"])
 
 # ---------------------------------------------------------------- Player
 with tab_player:
-    p = pooled[pooled.position != "Other"].sort_values("name")
+    p = pool_s[pool_s.position != "Other"].sort_values("name")
     opts = {int(k): v for k, v in zip(p.player_id, p.name + " (" + p.team + ", "
                                       + p.position.fillna("?") + ")")}
     default = int(p.sort_values("sprint_count").player_id.iloc[-1])
     pid = st.selectbox("Search a player (type a name)", list(opts), format_func=lambda i: opts[int(i)],
-                       index=list(opts).index(default),
+                       index=list(opts).index(default), key=f"player_{source}",
                        help="Click the box and start typing: the list filters as you type.")
-    me = pooled[pooled.player_id == pid].iloc[0]
-    peers = per90(pooled[(pooled.position == me.position) & (pooled.minutes_official >= 180)],
-                  list(METRICS))
-    mine = per90(pooled[pooled.player_id == pid], list(METRICS)).iloc[0]
+    me = pool_s[pool_s.player_id == pid].iloc[0]
+    peers = per90(pool_s[(pool_s.position == me.position) & (pool_s.minutes_official >= 180)], STATS)
+    mine = per90(pool_s[pool_s.player_id == pid], STATS).iloc[0]
 
     c = st.columns(5)
     c[0].metric("Matches", int(me.n_matches))
@@ -132,10 +167,10 @@ with tab_player:
 
     left, right = st.columns([1, 1])
     with left:
-        st.subheader(f"Percentile among {me.position}s")
+        st.subheader(f"Percentile among {me.position}s ({source})")
         st.caption(f"{len(peers)} players with 180+ minutes. Volumes per 90 minutes.")
         rows = []
-        for col in METRICS:
+        for col in STATS:
             v = mine[col]
             if pd.isna(v) or peers[col].notna().sum() < 5:
                 continue
@@ -144,36 +179,41 @@ with tab_player:
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
                      column_config={"percentile": st.column_config.ProgressColumn(
                          "percentile", min_value=0, max_value=100, format="%d")})
+        if len(peers) < 10:
+            st.caption("Few comparable players in this sample: read percentiles with care.")
     with right:
         st.subheader("Sprints and HSR on the pitch")
         e = efforts[efforts.player_id == pid]
         kinds = st.multiselect("Effort type", ["sprint", "hsr"], default=["sprint"])
-        ctx = st.multiselect("Context", list(CONTEXT_COLORS), default=list(CONTEXT_COLORS))
-        sel = e[e.kind.isin(kinds) & e.context.isin(ctx)]
-        st.pyplot(pitch(sel))
-        st.caption(f"{len(sel)} efforts. Colour = context: " +
-                   ", ".join(f"{k}" for k in CONTEXT_COLORS))
-        share = sel.context.value_counts(normalize=True).mul(100).round(0)
+        if source == "A-League":
+            colors, column, what = CONTEXT_COLORS, "context", "what the sprint was for"
+        else:
+            colors, column, what = PHASE_COLORS, "team_phase", "ball possession at the start"
+        pick = st.multiselect(f"Colour = {what}", list(colors), default=list(colors))
+        sel = e[e.kind.isin(kinds) & e[column].isin(pick)]
+        st.pyplot(pitch(sel, colors, column))
+        st.caption(f"{len(sel)} efforts, all matches, team always attacking left to right.")
+        share = sel[column].value_counts(normalize=True).mul(100).round(0)
         st.bar_chart(share.rename("% of efforts"), horizontal=True)
 
     st.subheader("Match by match")
-    cols = st.multiselect("Stats", list(METRICS), default=DEFAULT, format_func=lambda c: METRICS[c][0],
-                          key="player_stats")
+    cols = st.multiselect("Stats", STATS, default=DEF, format_func=lambda c: METRICS[c][0],
+                          key=f"player_stats_{source}")
     p90 = st.toggle("Per 90 minutes", value=False, key="player_p90")
-    mm = per90(by_match[by_match.player_id == pid], cols, p90).merge(
-        matches[["match_id", "label"]], on="match_id").sort_values("label")
+    mm = per90(bym_s[bym_s.player_id == pid], cols, p90).merge(
+        matches_s[["match_id", "label"]], on="match_id").sort_values("label")
     st.dataframe(mm[["label", "minutes_official"] + cols].rename(columns=labels(cols, p90))
                  .round(1), hide_index=True, width="stretch")
 
 # ---------------------------------------------------------------- Match
 with tab_match:
-    mlabels = {int(k): v for k, v in zip(matches.match_id, matches.label)}
-    mid = st.selectbox("Match", list(mlabels), format_func=lambda i: mlabels[int(i)],
-                       index=len(mlabels) - 1)
-    cols = st.multiselect("Stats", list(METRICS), default=DEFAULT, format_func=lambda c: METRICS[c][0],
-                          key="match_stats")
+    mlabels = dict(zip(matches_s.match_id, matches_s.label))
+    mid = st.selectbox("Match", list(mlabels), format_func=lambda i: mlabels[str(i)],
+                       index=len(mlabels) - 1, key=f"match_{source}")
+    cols = st.multiselect("Stats", STATS, default=DEF, format_func=lambda c: METRICS[c][0],
+                          key=f"match_stats_{source}")
     p90 = st.toggle("Per 90 minutes", value=False, key="match_p90")
-    m = per90(by_match[(by_match.match_id == mid) & (by_match.position != "Other")], cols, p90)
+    m = per90(bym_s[(bym_s.match_id == mid) & (bym_s.position != "Other")], cols, p90)
     for team, g in m.groupby("team"):
         st.subheader(team)
         st.dataframe(g[["name", "position", "minutes_official"] + cols]
@@ -184,12 +224,14 @@ with tab_match:
 # ---------------------------------------------------------------- Compare
 with tab_compare:
     c1, c2, c3 = st.columns(3)
-    x = c1.selectbox("X axis", list(METRICS), index=list(METRICS).index("sprint_count"),
-                     format_func=lambda c: METRICS[c][0])
-    y = c2.selectbox("Y axis", list(METRICS), index=list(METRICS).index("runs_targeted"),
-                     format_func=lambda c: METRICS[c][0])
-    k = c3.slider("Minimum matches", 1, int(pooled.n_matches.max()), 3)
-    d = per90(pooled[(pooled.n_matches >= k) & (pooled.position != "Other")], list({x, y}))
+    x = c1.selectbox("X axis", STATS, index=STATS.index("sprint_count"),
+                     format_func=lambda c: METRICS[c][0], key=f"x_{source}")
+    y_default = "runs_targeted" if source == "A-League" else "aerial_duels"
+    y = c2.selectbox("Y axis", STATS, index=STATS.index(y_default),
+                     format_func=lambda c: METRICS[c][0], key=f"y_{source}")
+    k = c3.slider("Minimum matches", 1, int(pool_s.n_matches.max()), 2 if source == "Bundesliga" else 3,
+                  key=f"k_{source}")
+    d = per90(pool_s[(pool_s.n_matches >= k) & (pool_s.position != "Other")], list({x, y}))
     lab = labels([x, y])
     shown = list(dict.fromkeys([x, y]))
     d = d[["name", "team", "position", "n_matches"] + shown].rename(columns=lab)

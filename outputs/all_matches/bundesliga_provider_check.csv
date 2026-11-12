@@ -1,0 +1,4 @@
+metric,pearson_r,median_ratio,n
+total,1.0,0.9977,184
+hsr,0.9999,0.988,184
+sprint,0.9996,0.9908,184

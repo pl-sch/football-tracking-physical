@@ -111,3 +111,20 @@ def test_same_distance_at_25_hz():
     s = player_summary(add_speed(tr, window=11, fps=fps), fps=fps).iloc[0]
     assert s.total_distance_m == pytest.approx(240, rel=0.01)
     assert s.minutes_tracked == pytest.approx(1.0, rel=0.01)
+
+
+def test_resample_keeps_speed_and_drop_removes_dead_ball_only():
+    from footperf.degrade import drop_dead_ball, resample
+    fps = 25
+    n = 25 * 120  # 2 minutes at 4 m/s, last minute dead ball
+    x = np.arange(n) * 4.0 / fps
+    tr = pd.DataFrame({"frame": np.arange(n), "period": 1, "player_id": 1, "x": x, "y": 0.0,
+                       "detected": True, "possession": pd.Categorical(["home"] * n, ["home", "away"]),
+                       "alive": np.arange(n) < n // 2})
+    ten = resample(tr, fps, 10.0)
+    assert np.diff(ten.frame).max() == 1
+    s = player_summary(add_speed(ten, window=9, fps=10), fps=10).iloc[0]
+    assert s.total_distance_m == pytest.approx(480, rel=0.01)
+    cut = drop_dead_ball(ten, share=0.25)  # whole dead-ball blocks: here the full last minute
+    assert cut.alive.all()                 # live play is never removed
+    assert len(cut) <= 0.75 * len(ten)

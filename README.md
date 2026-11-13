@@ -1,5 +1,7 @@
 # Football tracking: physical metrics from raw positions
 
+[![tests](https://github.com/pl-sch/football-tracking-physical/actions/workflows/tests.yml/badge.svg)](https://github.com/pl-sch/football-tracking-physical/actions/workflows/tests.yml)
+
 Distance, high-speed running, sprints and accelerations for every player, computed from raw tracking data (x, y positions, 10 to 25 times per second), checked against the providers' own numbers on 27 matches from two leagues, then linked to what happens on the pitch: is a sprint a run in behind, a press, a carry, a recovery run?
 
 Most football analytics repos start from metrics someone else already computed. This one starts from positions, treats speed and acceleration as a signal processing problem, and measures how far the result is from the reference before using it.
@@ -24,6 +26,7 @@ bash scripts/fetch_idsse.sh                       # Bundesliga files from Huggin
 python src/footperf/sportec_convert.py data/idsse # XML -> compact CSV, standard library only
 python scripts/run_all.py                 # all matches: physical + technical stats, validation (A-League ~1.8 GB download)
 python scripts/bundesliga_check.py        # our speed vs the DFL's, add --window-scan for the smoothing test
+python scripts/degrade_optical.py         # optical data degraded to broadcast quality (~4 min)
 python scripts/sprint_context.py          # what each sprint was for
 python scripts/relative_thresholds.py     # fixed vs player-relative sprint threshold
 python scripts/run_match.py --match 1886347   # one match in detail, with signal figures
@@ -69,7 +72,7 @@ What this shows:
 - **Pooling raises every correlation.** With 5+ matches (only 14 players) distances reach r = 0.96 to 0.99 and sprint counts 0.85. Most of the single-match gap is sampling noise: a player makes about 10 sprints a match.
 - **The overall metres-per-minute bias (0.82) disappears once split by possession (1.01 and 0.99).** The missing distance is covered when nobody has the ball, which is exactly when the broadcast shows replays and close-ups. See point 1 below.
 - **HSR count was fixed by the definition, not by more data.** Counting "one run above 20 km/h = one effort" gave a ratio of 0.64 that pooling never moved. Counting each stay in the 20-25 km/h band, as SkillCorner describes, brings it to 0.92. The old count is kept as `hsr_effort_count` for comparison.
-- **Sprint counts are 16% high** and accelerations 18% high. Open question; likely spikes on extrapolated frames.
+- **Sprint counts are 16% high** and accelerations 18% high. Random noise does not reproduce this (see "Source or method?" below); extrapolated off-camera positions are the main suspect.
 - **Top speed stays the weakest metric.** Half the players have a PSV-99 between 27.5 and 29 km/h, so an error of 1 km/h is enough to reshuffle the ranking.
 
 ## What are sprints for?
@@ -111,6 +114,30 @@ The pipeline uses 0.44 s for optical tracking and 0.9 s for broadcast tracking. 
 
 The DFL events also bring what SkillCorner's lack: duels with a winner and a loser, aerial duels (headers), tackles, and xG per shot. They are in the app under "Bundesliga". With 7 matches, all involving Fortuna Düsseldorf, these are illustrations, not league-wide conclusions.
 
+## Source or method? Degrading optical tracking to broadcast quality
+
+The A-League numbers carry two kinds of error mixed together: what broadcast tracking loses, and what my method gets wrong. The Bundesliga data separates them. Take the clean optical tracking, damage it one defect at a time to look like broadcast tracking, run the broadcast settings on each version (10 Hz, 0.9 s smoothing), and compare with the clean result. 7 matches, players with 45+ minutes.
+
+![degradation](outputs/all_matches/degradation.png)
+
+| degraded / clean (median) | total distance | HSR distance | sprint distance | sprint count | high accel | top speed |
+|---|---|---|---|---|---|---|
+| 10 Hz instead of 25 | 0.99 | 0.97 | 0.95 | 1.00 | 1.00 | 1.00 |
+| + 10 cm position noise | 1.00 | 0.98 | 0.96 | 1.00 | 1.00 | 1.00 |
+| + 30 cm noise | 1.04 | 1.04 | 1.10 | 1.00 | 0.92 | 0.99 |
+| + 50 cm noise | 1.11 | 1.18 | 1.37 | 1.13 | 0.89 | 0.99 |
+| 30 cm noise + 26% frames missing in stoppages | **0.87** | 1.03 | 1.08 | 1.00 | 0.79 | 0.99 |
+
+What it shows:
+
+- **The frame rate is not the problem.** 10 Hz instead of 25 costs at most 5%.
+- **Noise inflates distance, mostly at high speed.** Random position error looks like movement. At 30 cm, sprint distance is 10% too high; at 50 cm, 37%. Counts and top speed hold well.
+- **Missing frames during stoppages explain the A-League distance gap.** Removing 26% of frames, all in dead-ball phases, cuts total distance by 13% and leaves high-speed metrics untouched. That is exactly the A-League pattern: 0.82 on metres per minute, about 1.0 once split by possession, about 1.0 on HSR and sprint distance.
+- **The 0.9 s smoothing window is confirmed independently.** On the 30 cm scenario, 0.5 s doubles sprint distance and wrecks the HSR count (0.12), 1.7 s loses 16% of sprint distance and 72% of accelerations, 0.9 s stays within 10% everywhere. That window was chosen on the A-League by matching SkillCorner's acceleration counts; a completely different test lands on the same value.
+- **What it does not explain: the 16% excess of A-League sprints.** Noise up to 30 cm leaves sprint counts at 1.00. 50 cm gives +13% sprints, but also +37% sprint distance, which the A-League does not show (1.04). The excess must come from elsewhere, most likely the positions SkillCorner extrapolates off camera, which no simple noise reproduces.
+
+Limit: real broadcast errors are not independent random noise, and SkillCorner smooths its positions before publishing them. The noise levels bracket the possibilities rather than reproduce them.
+
 ## Three things the data taught me
 
 **1. Broadcast tracking loses players a quarter of the time.** On match 1886347, 26% of frames are empty: replays and close-ups, mostly during stoppages, when players walk. Dividing distance by *tracked* minutes inflates intensity by 15%. Dividing by minutes played is fair but misses the low-speed distance covered off-camera. The possession split above confirms it: within live play, the bias is gone.
@@ -146,11 +173,13 @@ src/footperf/
   events.py       technical stats and effort context from dynamic events
   sportec.py      Bundesliga (DFL / IDSSE): players, tracking, events, provider speed check
   sportec_convert.py  streaming XML -> CSV converter, standard library only
+  degrade.py      turns optical tracking into broadcast-like tracking (frame rate, noise, gaps)
   pipeline.py     one match end to end with caching, pooling across matches
   validation.py   comparison with SkillCorner season aggregates
   viz.py          figures (matplotlib only)
 scripts/          run_all, run_match, sprint_context, relative_thresholds, sensitivity,
-                  bundesliga_check, fetch_idsse.sh
+                  bundesliga_check, degrade_optical, fetch_idsse.sh
+.github/workflows tests run automatically on GitHub at every push
 app/              Streamlit explorer
 tests/            synthetic trajectories with known answers
 ```
@@ -159,7 +188,7 @@ tests/            synthetic trajectories with known answers
 
 - Small samples: 20 A-League matches (1 to 7 per player), 7 Bundesliga matches all involving Fortuna Düsseldorf.
 - No free tracking data exists for Ligue 1. The 2022 World Cup (PFF FC, free on registration) is the next candidate.
-- Degrade the Bundesliga data to 10 Hz with broadcast-like noise and gaps, to measure how much of the A-League error comes from the source rather than the method.
+- Simulate extrapolated off-camera positions, the remaining suspect for the A-League sprint excess.
 - Find where the 16% excess in sprint counts comes from (extrapolated frames are the first suspect).
 - Event data with tackles, duels and headers (e.g. StatsBomb) exists for other competitions, not for these matches.
 - Physical output by game state: winning, drawing, losing.

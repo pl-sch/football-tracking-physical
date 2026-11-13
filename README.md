@@ -27,6 +27,7 @@ python src/footperf/sportec_convert.py data/idsse # XML -> compact CSV, standard
 python scripts/run_all.py                 # all matches: physical + technical stats, validation (A-League ~1.8 GB download)
 python scripts/bundesliga_check.py        # our speed vs the DFL's, add --window-scan for the smoothing test
 python scripts/degrade_optical.py         # optical data degraded to broadcast quality (~4 min)
+python scripts/goal_clips.py              # 12 s tracking clips around the 19 Bundesliga goals, for the app
 python scripts/sprint_context.py          # what each sprint was for
 python scripts/relative_thresholds.py     # fixed vs player-relative sprint threshold
 python scripts/run_match.py --match 1886347   # one match in detail, with signal figures
@@ -159,9 +160,11 @@ The default of 9 frames was chosen because it matches SkillCorner on acceleratio
 
 `app/streamlit_app.py` reads the CSV files in `outputs/`. Pick the league at the top; each league shows the stats its provider records.
 
-- **Player**: percentiles against players in the same position, sprint map filtered by context, match-by-match table with the stats you choose.
+- **Player**: search by name, percentiles against players in the same position (all outfield players when the sample has fewer than 8 at that position), sprint map, match-by-match table with the stats you choose.
+- **Similar profiles**: the 5 closest players, by cosine similarity on standardised per-90 stats (physical and technical). The kind of shortlist a recruitment department starts from.
 - **Match**: both teams, chosen stats, totals or per 90 minutes.
 - **Compare players**: any two stats against each other, coloured by position.
+- **Goal replays** (Bundesliga): the 19 goals animated from the tracking data, 10 s before to 2 s after, with shirt numbers and the shot's xG. The goal moment is located where the ball crosses the line in the tracking, not only from the event clock.
 
 ## Layout
 
@@ -178,7 +181,7 @@ src/footperf/
   validation.py   comparison with SkillCorner season aggregates
   viz.py          figures (matplotlib only)
 scripts/          run_all, run_match, sprint_context, relative_thresholds, sensitivity,
-                  bundesliga_check, degrade_optical, fetch_idsse.sh
+                  bundesliga_check, degrade_optical, goal_clips, fetch_idsse.sh
 .github/workflows tests run automatically on GitHub at every push
 app/              Streamlit explorer
 tests/            synthetic trajectories with known answers

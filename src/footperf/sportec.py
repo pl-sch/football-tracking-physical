@@ -79,6 +79,7 @@ def load_players(meta_path: Path) -> pd.DataFrame:
                 "player_id": player_int_id(p.get("PersonId")),
                 "source_id": p.get("PersonId"),
                 "name": p.get("Shortname"),
+                "jersey": p.get("ShirtNumber"),
                 "team": team.get("TeamName"),
                 "side": side,
                 "position": POSITIONS.get(p.get("PlayingPosition"), "Other"),

@@ -13,6 +13,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,6 +97,82 @@ def labels(cols, p90=True):
     return {c: METRICS[c][0] + (" /90" if p90 and METRICS[c][1] == "volume" else "") for c in cols}
 
 
+MIN_MINUTES = {"A-League": 180, "Bundesliga": 90}  # fewer Bundesliga matches, lower bar
+SIM_BASE = ["total_distance_m", "hsr_distance_m", "sprint_distance_m", "sprint_count",
+            "high_accel_count", "top_speed_kmh", "passes", "pass_accuracy", "shots", "regains"]
+SIM_EXTRA = {"A-League": ["off_ball_runs", "runs_targeted", "defensive_engagements"],
+             "Bundesliga": ["duels", "aerial_duels", "tackles_won", "xg"]}
+
+
+def similar_players(pool: pd.DataFrame, pid: int, feats: list[str], min_minutes: float,
+                    same_position: bool, n: int = 5) -> pd.DataFrame:
+    """Cosine similarity on per-90 stats standardised within the league (z-scores).
+    100 = identical profile, 50 = unrelated, 0 = opposite."""
+    me = pool[pool.player_id == pid].iloc[0]
+    cand = pool[(pool.position != "Other") &
+                ((pool.minutes_official >= min_minutes) | (pool.player_id == pid))]
+    if same_position:
+        cand = cand[cand.position == me.position]
+    X = per90(cand, feats).set_index("player_id")[feats].astype(float)
+    X = X.fillna(X.median())
+    Z = (X - X.mean()) / X.std(ddof=0).replace(0, 1)
+    z = Z.loc[pid]
+    cos = Z.drop(index=pid).dot(z) / (np.linalg.norm(Z.drop(index=pid), axis=1) * np.linalg.norm(z) + 1e-9)
+    out = cand.set_index("player_id").loc[cos.index, ["name", "team", "position", "n_matches"]]
+    out["similarity"] = (50 * (1 + cos)).round(0)
+    return out.sort_values("similarity", ascending=False).head(n).reset_index()
+
+
+def pitch_shapes() -> list[dict]:
+    line = dict(color="white", width=1.5)
+    L, W = 52.5, 34
+    shapes = [dict(type="rect", x0=-L, y0=-W, x1=L, y1=W, line=line),
+              dict(type="line", x0=0, y0=-W, x1=0, y1=W, line=line),
+              dict(type="circle", x0=-9.15, y0=-9.15, x1=9.15, y1=9.15, line=line)]
+    for s in (-1, 1):
+        shapes += [dict(type="rect", x0=s * L, y0=-20.16, x1=s * (L - 16.5), y1=20.16, line=line),
+                   dict(type="rect", x0=s * L, y0=-9.16, x1=s * (L - 5.5), y1=9.16, line=line),
+                   dict(type="rect", x0=s * L, y0=-3.66, x1=s * (L + 2), y1=3.66, line=line)]
+    return shapes
+
+
+def replay_figure(clip: pd.DataFrame) -> go.Figure:
+    style = {"scoring team": dict(color="#D55E00", size=17),
+             "defending team": dict(color="#0072B2", size=17),
+             "ball": dict(color="white", size=10, line=dict(color="black", width=1.5))}
+    times = sorted(clip.t.unique())
+
+    def traces(t):
+        f = clip[clip.t == t]
+        out = []
+        for kind, st_ in style.items():
+            g = f[f.kind == kind]
+            out.append(go.Scatter(x=g.x, y=g.y, mode="markers+text" if kind != "ball" else "markers",
+                                  text=g.label, textfont=dict(color="white", size=9),
+                                  hovertext=g.name, hoverinfo="text", marker=st_, name=kind))
+        return out
+
+    fig = go.Figure(data=traces(times[0]),
+                    frames=[go.Frame(data=traces(t), name=f"{t:.1f}") for t in times])
+    fig.update_layout(
+        shapes=pitch_shapes(), plot_bgcolor="#3a7d44", paper_bgcolor="rgba(0,0,0,0)", height=560,
+        xaxis=dict(range=[-56, 56], visible=False),
+        yaxis=dict(range=[-36, 36], visible=False, scaleanchor="x"),
+        margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", y=-0.02),
+        updatemenus=[dict(type="buttons", direction="left", x=0, y=1.08, showactive=False, buttons=[
+            dict(label="▶ Play", method="animate",
+                 args=[None, dict(frame=dict(duration=80, redraw=False), fromcurrent=True,
+                                  transition=dict(duration=0))]),
+            dict(label="❚❚ Pause", method="animate",
+                 args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")])])],
+        sliders=[dict(currentvalue=dict(prefix="seconds to goal: "), pad=dict(t=30),
+                      steps=[dict(method="animate", label=f"{t:.1f}",
+                                  args=[[f"{t:.1f}"], dict(mode="immediate",
+                                                          frame=dict(duration=0, redraw=False))])
+                             for t in times])])
+    return fig
+
+
 def available(source: str) -> list[str]:
     """Stats recorded by this data source."""
     other = [k for k in SOURCE_ONLY if k != source]
@@ -143,7 +220,9 @@ bym_s = by_match[by_match.source == source]
 matches_s = matches[matches.league.str.startswith(source) | (
     (source == "Bundesliga") & matches.league.str.contains("Bundesliga"))]
 
-tab_player, tab_match, tab_compare = st.tabs(["Player", "Match", "Compare players"])
+names = ["Player", "Match", "Compare players"] + (["Goal replays"] if source == "Bundesliga" else [])
+tabs = st.tabs(names)
+tab_player, tab_match, tab_compare = tabs[:3]
 
 # ---------------------------------------------------------------- Player
 with tab_player:
@@ -155,7 +234,16 @@ with tab_player:
                        index=list(opts).index(default), key=f"player_{source}",
                        help="Click the box and start typing: the list filters as you type.")
     me = pool_s[pool_s.player_id == pid].iloc[0]
-    peers = per90(pool_s[(pool_s.position == me.position) & (pool_s.minutes_official >= 180)], STATS)
+    outfield = pool_s[(pool_s.position != "Other") & (pool_s.minutes_official >= MIN_MINUTES[source])]
+    same_pos = outfield[outfield.position == me.position]
+    if len(same_pos) >= 8:
+        peers, who = same_pos, f"{me.position}s"
+        peer_note = ""
+    else:
+        peers, who = outfield, "all outfield players"
+        peer_note = (f"Only {len(same_pos)} {me.position}s in this sample, too few for percentiles: "
+                     "compared with all outfield players instead.")
+    peers = per90(peers, STATS)
     mine = per90(pool_s[pool_s.player_id == pid], STATS).iloc[0]
 
     c = st.columns(5)
@@ -167,8 +255,9 @@ with tab_player:
 
     left, right = st.columns([1, 1])
     with left:
-        st.subheader(f"Percentile among {me.position}s ({source})")
-        st.caption(f"{len(peers)} players with 180+ minutes. Volumes per 90 minutes.")
+        st.subheader(f"Percentile among {who} ({source})")
+        st.caption(f"{len(peers)} players with {MIN_MINUTES[source]}+ minutes. Volumes per 90 minutes. "
+                   + peer_note)
         rows = []
         for col in STATS:
             v = mine[col]
@@ -179,8 +268,6 @@ with tab_player:
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
                      column_config={"percentile": st.column_config.ProgressColumn(
                          "percentile", min_value=0, max_value=100, format="%d")})
-        if len(peers) < 10:
-            st.caption("Few comparable players in this sample: read percentiles with care.")
     with right:
         st.subheader("Sprints and HSR on the pitch")
         e = efforts[efforts.player_id == pid]
@@ -195,6 +282,20 @@ with tab_player:
         st.caption(f"{len(sel)} efforts, all matches, team always attacking left to right.")
         share = sel[column].value_counts(normalize=True).mul(100).round(0)
         st.bar_chart(share.rename("% of efforts"), horizontal=True)
+
+    st.subheader("Similar profiles")
+    feats = SIM_BASE + SIM_EXTRA[source]
+    same = st.toggle("Same position only", value=len(same_pos) >= 8, key=f"same_{source}")
+    sim = similar_players(pool_s, pid, feats, MIN_MINUTES[source], same)
+    st.caption("Closest players on " + ", ".join(METRICS[f][0].lower() for f in feats)
+               + " (per 90, standardised within the league). 100 = same profile, 50 = unrelated.")
+    show = per90(pool_s[pool_s.player_id.isin([pid] + sim.player_id.tolist())], feats)
+    show = show.set_index("player_id").loc[[pid] + sim.player_id.tolist()]
+    show.insert(0, "similarity", [None] + sim.similarity.tolist())
+    show = show[["name", "team", "position", "similarity"] + feats].rename(columns=labels(feats))
+    st.dataframe(show.round(1), hide_index=True, width="stretch",
+                 column_config={"similarity": st.column_config.ProgressColumn(
+                     "similarity", min_value=0, max_value=100, format="%d")})
 
     st.subheader("Match by match")
     cols = st.multiselect("Stats", STATS, default=DEF, format_func=lambda c: METRICS[c][0],
@@ -239,3 +340,18 @@ with tab_compare:
     st.caption(f"{len(d)} players. Volumes per 90 minutes. Hover a point for its values; "
                "the table below names them.")
     st.dataframe(d.round(2).sort_values(lab[y], ascending=False), hide_index=True, width="stretch")
+
+# ---------------------------------------------------------------- Goal replays (Bundesliga)
+if source == "Bundesliga":
+    with tabs[3]:
+        goals = pd.read_csv(ALL / "goals.csv")
+        clips = pd.read_csv(ALL / "goal_clips.csv.gz")
+        glab = {r.goal_id: f"{r.date}  {r.match}  ·  {r.minute}'  {r.scorer} ({r.team})  {r.score}"
+                for r in goals.itertuples()}
+        gid = st.selectbox("Goal", list(glab), format_func=lambda g: glab[g], key="goal")
+        g = goals.set_index("goal_id").loc[gid]
+        st.plotly_chart(replay_figure(clips[clips.goal_id == gid]), width="stretch")
+        note = "" if g.line_crossing_found else " The ball is not tracked over the line here: timing is approximate."
+        st.caption(f"Optical tracking, 10 s before the goal to 2 s after. Red: {g.team} (attacking "
+                   f"left to right), blue: defenders, white: ball. Numbers are shirt numbers. "
+                   f"Shot xG: {g.xg:.2f}.{note}")

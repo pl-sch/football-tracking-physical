@@ -1,0 +1,20 @@
+goal_id,match_id,date,match,minute,scorer,team,score,xg,body,line_crossing_found
+J03WMX-1,J03WMX,2023-05-27,1. FC Köln - FC Bayern München,8,Kingsley Coman,FC Bayern München,0-1,0.04,rightLeg,True
+J03WMX-2,J03WMX,2023-05-27,1. FC Köln - FC Bayern München,81,D. Ljubicic,1. FC Köln,1-1,0.77,rightLeg,True
+J03WMX-3,J03WMX,2023-05-27,1. FC Köln - FC Bayern München,89,J. Musiala,FC Bayern München,1-2,0.05,rightLeg,True
+J03WN1-1,J03WN1,2023-05-27,VfL Bochum 1848 - Bayer 04 Leverkusen,19,P. Förster,VfL Bochum 1848,1-0,0.84,leftLeg,True
+J03WN1-2,J03WN1,2023-05-27,VfL Bochum 1848 - Bayer 04 Leverkusen,34,T. Asano,VfL Bochum 1848,2-0,0.15,rightLeg,True
+J03WN1-3,J03WN1,2023-05-27,VfL Bochum 1848 - Bayer 04 Leverkusen,86,K. Stöger,VfL Bochum 1848,3-0,0.19,leftLeg,True
+J03WOH-1,J03WOH,2022-08-26,Fortuna Düsseldorf - SSV Jahn Regensburg,59,D. Ginczek,Fortuna Düsseldorf,1-0,0.08,rightLeg,True
+J03WOH-2,J03WOH,2022-08-26,Fortuna Düsseldorf - SSV Jahn Regensburg,65,Dawid Kownacki,Fortuna Düsseldorf,2-0,0.77,rightLeg,True
+J03WOH-3,J03WOH,2022-08-26,Fortuna Düsseldorf - SSV Jahn Regensburg,78,F. Klaus,Fortuna Düsseldorf,3-0,0.15,rightLeg,True
+J03WOH-4,J03WOH,2022-08-26,Fortuna Düsseldorf - SSV Jahn Regensburg,85,Shinta Appelkamp,Fortuna Düsseldorf,4-0,0.85,leftLeg,True
+J03WOY-1,J03WOY,2022-09-10,Fortuna Düsseldorf - F.C. Hansa Rostock,10,Dawid Kownacki,Fortuna Düsseldorf,1-0,0.22,rightLeg,True
+J03WOY-2,J03WOY,2022-09-10,Fortuna Düsseldorf - F.C. Hansa Rostock,27,M. Sobottka,Fortuna Düsseldorf,2-0,0.45,leftLeg,True
+J03WOY-3,J03WOY,2022-09-10,Fortuna Düsseldorf - F.C. Hansa Rostock,61,Lukas Fröde,F.C. Hansa Rostock,2-1,0.15,head,True
+J03WOY-4,J03WOY,2022-09-10,Fortuna Düsseldorf - F.C. Hansa Rostock,77,E. Iyoha,Fortuna Düsseldorf,3-1,0.27,rightLeg,True
+J03WPY-1,J03WPY,2022-10-15,Fortuna Düsseldorf - 1. FC Nürnberg,47,Kwadwo Duah,1. FC Nürnberg,0-1,0.57,rightLeg,True
+J03WQQ-1,J03WQQ,2022-11-05,Fortuna Düsseldorf - FC St. Pauli,22,R. Hennings,Fortuna Düsseldorf,1-0,0.05,leftLeg,False
+J03WR9-1,J03WR9,2022-11-11,Fortuna Düsseldorf - 1. FC Kaiserslautern,14,M. Karbownik,Fortuna Düsseldorf,1-0,0.06,rightLeg,True
+J03WR9-2,J03WR9,2022-11-11,Fortuna Düsseldorf - 1. FC Kaiserslautern,50,K. Kraus,1. FC Kaiserslautern,1-1,0.12,head,True
+J03WR9-3,J03WR9,2022-11-11,Fortuna Düsseldorf - 1. FC Kaiserslautern,96,P. Klement,1. FC Kaiserslautern,1-2,0.77,leftLeg,True

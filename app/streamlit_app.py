@@ -153,7 +153,7 @@ def replay_figure(clip: pd.DataFrame) -> go.Figure:
         return out
 
     fig = go.Figure(data=traces(times[0]),
-                    frames=[go.Frame(data=traces(t), name=f"{t:.1f}") for t in times])
+                    frames=[go.Frame(data=traces(t), name=f"{t:.2f}") for t in times])
     fig.update_layout(
         shapes=pitch_shapes(), plot_bgcolor="#3a7d44", paper_bgcolor="rgba(0,0,0,0)", height=560,
         xaxis=dict(range=[-56, 56], visible=False),
@@ -167,7 +167,7 @@ def replay_figure(clip: pd.DataFrame) -> go.Figure:
                  args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")])])],
         sliders=[dict(currentvalue=dict(prefix="seconds to goal: "), pad=dict(t=30),
                       steps=[dict(method="animate", label=f"{t:.1f}",
-                                  args=[[f"{t:.1f}"], dict(mode="immediate",
+                                  args=[[f"{t:.2f}"], dict(mode="immediate",
                                                           frame=dict(duration=0, redraw=False))])
                              for t in times])])
     return fig
